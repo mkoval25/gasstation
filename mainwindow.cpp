@@ -156,7 +156,7 @@ void MainWindow::on_pushButton_3_clicked() // "Шаг"
 
    if (mod->currTime[0]<daysInWeek-1) {
        mod->Tick();
-       cout << "weekday:" << mod->currTime[0] << endl;
+      // cout << "weekday:" << mod->currTime[0] << endl;
        timePanelUpdate();
        ui->label->setText(hrs_str+":"+mins_str); // TODO move to timePanelUpdate
    }

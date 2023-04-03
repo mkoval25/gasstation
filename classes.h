@@ -281,7 +281,6 @@ public:
             currTime[0] += 1;
             currTime[1] -= minsInDay;
         }
-        cout << "DAY: " << currTime[0] << " TIME: " << currTime[1] << endl;
     };
 
     
