@@ -259,24 +259,16 @@ public:
         int d_time = 0;
         int currMeanTime = meanTime;
 
-        /*
-        if(IsWeekEnd()) {
-            meanTime = 5;
-        } else {
-            meanTime = 10;
-        }
-        */
 
         // generating and accepting Requests for one modelling step...
         while(true) {
 
             // d_time generating from 1 to 20 mins...
-            // TODO d_time depends on fluxDensity - more complex
             currMeanTime = ModifyMeanTime(); 
             d_time = NormalRandom(currMeanTime,stddev);
             d_time = intervalCram(d_time);
 
-            cout << "currMeanTime: " << currMeanTime << endl;
+            //cout << "currMeanTime: " << currMeanTime << endl;
             cout << "gen d_time: " << d_time << endl;
 
             stepTime += d_time;
@@ -295,12 +287,7 @@ public:
                 req.status = Declined;
             }
             ReqList.push_back(req); // adding new request to a list
-            //cout << "generated new Req for column " << req.colNum << " !" << endl;
-            /*
-            for (Request r : ReqList) {
-                cout << "status: " << r.status << " col: "<< r.colNum << endl;
-            }
-            */
+        
             gasStation.UpdateReqsTime(d_time); // only the head of queue
             gasStation.ClearServicedReqs(); // pop the head of queue if service time's over
         }
@@ -326,7 +313,6 @@ public:
 
     void GetStats() { // проходимся по списку всех заявок и собираем статистику, вызывая соотв. функции
         overallProfit = GetOverallProfit();
-        //profitByTypes = GetProfitByTypes();
         GetAvgVolumeByTypes();
         numAccepted = GetNumOfAccepted();
         numDeclined = GetNumOfDeclined();
@@ -358,8 +344,6 @@ public:
             if(numVolume != 0)
                 avgVolume[i] = sumVolume / numVolume;
         }
-        //return volumes;
-
     }
 
     int GetNumOfAccepted() {
