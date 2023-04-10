@@ -14,6 +14,7 @@ using namespace std;
 
 // массив textEdit
 QTextEdit* queueTEs[7];
+QTextEdit* statsTEs[7];
 
 string weekDays[] = {"ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"};
 
@@ -80,6 +81,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->pushButton_3->setEnabled(false);
     ui->pushButton_4->setEnabled(false);
 
+    // заполняем вспомогательные массивы...
     queueTEs[0] = ui->q1;
     queueTEs[1] = ui->q2;
     queueTEs[2] = ui->q3;
@@ -88,10 +90,25 @@ MainWindow::MainWindow(QWidget *parent)
     queueTEs[5] = ui->q6;
     queueTEs[6] = ui->q7;
 
+    statsTEs[0] = ui->profitTE;
+
+    statsTEs[1] = ui->acceptedTE;
+    statsTEs[2] = ui->declinedTE;
+
+    statsTEs[3] = ui->va11;
+    statsTEs[4] = ui->va12;
+    statsTEs[5] = ui->vb11;
+    statsTEs[6] = ui->vb12;
+
     for (int i=0; i<7; i++) {
         queueTEs[i]->setEnabled(false);
         queueTEs[i]->setVisible(false);
         queueTEs[i]->setFontPointSize(24);
+    }
+
+    for (int i=0; i<7; i++) {
+        statsTEs[i]->setEnabled(false);
+        statsTEs[i]->setText(QString::fromStdString(""));
     }
 
     // не отображаем время и день недели
@@ -115,8 +132,6 @@ void MainWindow::on_pushButton_clicked() // "Выход"
 
 void MainWindow::on_pushButton_2_clicked() // "Начать"
 {
-
-
 
    //enabling Step and "Till the end" buttons
    ui->pushButton_3->setEnabled(true);
@@ -152,7 +167,7 @@ void MainWindow::on_pushButton_2_clicked() // "Начать"
    }
 
    //mod = new Model(60,4,5,13);
-   mod = new Model(step,N,K,3);
+   mod = new Model(step,N,K,margin);
    mins = mod->currTime[1];
    cout << "MINS at start: " << mins << endl;
    // ...Initialize()
@@ -214,15 +229,20 @@ void MainWindow::on_pushButton_4_clicked() // "До конца"
    ui->weekDayLabel->setText(QString::fromStdString(weekDays[mod->currTime[0]]));
 
    mod->GetStats();
-   ui->profitText->setText(QString::fromStdString(to_string(mod->overallProfit)));
+
+   for (int i=0; i<7; i++) {
+       statsTEs[i]->setEnabled(true);
+   }
+
+   ui->profitTE->setText(QString::fromStdString(to_string(mod->overallProfit)));
 
    ui->va11->setText(QString::fromStdString(to_string(mod->avgVolume[0])));
    ui->va12->setText(QString::fromStdString(to_string(mod->avgVolume[1])));
    ui->vb11->setText(QString::fromStdString(to_string(mod->avgVolume[2])));
    ui->vb12->setText(QString::fromStdString(to_string(mod->avgVolume[3])));
 
-   ui->textEdit_2->setText(QString::fromStdString(to_string(mod->numAccepted)));
-   ui->textEdit_3->setText(QString::fromStdString(to_string(mod->numDeclined)));
+   ui->acceptedTE->setText(QString::fromStdString(to_string(mod->numAccepted)));
+   ui->declinedTE->setText(QString::fromStdString(to_string(mod->numDeclined)));
 }
 
 
@@ -249,10 +269,20 @@ void MainWindow::on_pushButton_5_clicked() // "Заново"
         queueTEs[i]->setFontPointSize(24);
     }
 
+    // убираем статистику
+
+    for (int i=0; i<7; i++) {
+        statsTEs[i]->setEnabled(false);
+        statsTEs[i]->setText(QString::fromStdString(""));
+    }
+
+
     // не отображаем время и день недели
     ui->label->setEnabled(false);
     ui->weekDayLabel->setText(QString::fromStdString("ПН"));
     ui->weekDayLabel->setEnabled(false);
+
+
 
     ui->pushButton_2->setEnabled(true); // enabling Start button
 

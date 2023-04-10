@@ -676,8 +676,11 @@ hr { height: 1px; border-width: 0; }
       <height>21</height>
      </rect>
     </property>
+    <property name="text">
+     <string>10</string>
+    </property>
    </widget>
-   <widget class="QTextEdit" name="textEdit_2">
+   <widget class="QTextEdit" name="acceptedTE">
     <property name="geometry">
      <rect>
       <x>450</x>
@@ -687,7 +690,7 @@ hr { height: 1px; border-width: 0; }
      </rect>
     </property>
    </widget>
-   <widget class="QTextEdit" name="textEdit_3">
+   <widget class="QTextEdit" name="declinedTE">
     <property name="geometry">
      <rect>
       <x>580</x>
@@ -697,7 +700,7 @@ hr { height: 1px; border-width: 0; }
      </rect>
     </property>
    </widget>
-   <widget class="QTextEdit" name="profitText">
+   <widget class="QTextEdit" name="profitTE">
     <property name="geometry">
      <rect>
       <x>450</x>

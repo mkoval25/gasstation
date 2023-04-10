@@ -147,7 +147,7 @@ int NormalRandom(int mean, int stddev) { // равномерное распре�
     random_device rd;
     mt19937 gen(rd());
 
-    normal_distribution<> norm{5, 2};
+    normal_distribution<> norm(mean, stddev);
 
     auto random_int = norm(gen);
     return random_int;
@@ -192,7 +192,7 @@ public:
         this->margin = margin;
 
         this->meanTime = defaultMeanTime;
-        this->stddev = 10; // константа
+        this->stddev = 3; // константа
         timeForLiter = 20; // 20 sec
 
         this->prices[A11] = 10;
@@ -236,11 +236,12 @@ public:
         weekendCoeff = (IsWeekEnd()) ? 0.9 : 1.0; // по выходным чаще поступают заявки
         hourCoeff = HoursCoeff();
         marginCoeff = margin/defaultMargin;
-        int _mean = meanTime * weekendCoeff * hourCoeff * marginCoeff;
+
+        int _mean = defaultMeanTime * weekendCoeff * hourCoeff * marginCoeff;
         return _mean;
     }
 
-    int HoursCoeff() {
+    float HoursCoeff() {
         int hourT = currTime[1];
         if (hourT > 540 && hourT < 840) { // пик - с 9 до 14,
             return 0.6;
@@ -275,7 +276,7 @@ public:
             d_time = NormalRandom(currMeanTime,stddev);
             d_time = intervalCram(d_time);
 
-
+            cout << "currMeanTime: " << currMeanTime << endl;
             cout << "gen d_time: " << d_time << endl;
 
             stepTime += d_time;
