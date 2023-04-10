@@ -26,6 +26,8 @@ private slots:
 
     void on_comboBox_activated(int index);
 
+    void on_pushButton_5_clicked();
+
 private:
     Ui::MainWindow *ui;
 };

@@ -12,9 +12,7 @@ using namespace std;
 // все время меряется в минутах
 
 // TODO:
-
-// разбить классы на файлы
-// Моделирование должно идти одну неделю
+// использовать переменную flux для meantime = 1/flux?
 
 enum GasType { A11, B11, A12, B12 };
 
@@ -75,29 +73,19 @@ class GasStation {
 //      int K;
         vector<Column> cols; // массив колонн
 
-        int margin;
-        int prices[B12];
         // int stocks[B12]; // unused
 
         GasStation() {
             this->N = 10;
-            this->margin = 10;
         }
 
         GasStation(int N, int K, int margin) {
             this->N = N;
-            this->margin = margin;
-
 
             for (int i = 0; i < K; i++) {
 
                 cols.push_back(Column(N));
             }
-
-            this->prices[A11] = 10;
-            this->prices[A12] = 15;
-            this->prices[B11] = 20;
-            this->prices[B12] = 22;
         }
 
         bool ServiceReq(Request req) {
@@ -155,7 +143,6 @@ int UniRandom(int min, int max) { // равномерное распределе
     return random_int;
 }
 
-
 int NormalRandom(int mean, int stddev) { // равномерное распределение
     random_device rd;
     mt19937 gen(rd());
@@ -166,7 +153,6 @@ int NormalRandom(int mean, int stddev) { // равномерное распре�
     return random_int;
 }
 
-
 class Model {
 // interacts with GUI
 public:
@@ -176,18 +162,27 @@ public:
     int N; // макс. длина очереди
     int K; // макс. кол-во колонн
 
-
     int margin; // replace to GasStation class
+    int prices[4];
 
     int meanTime; // время между заявками, должно зависеть от наценки: больше наценка -> больше meanTime
     int stddev;
 
+    float weekendCoeff;
+    float hourCoeff;
+    float marginCoeff;
 
     GasStation gasStation;
 
     list<Request> ReqList;
 
     int timeForLiter = 20; // 20 secs;
+    
+    // stats
+    int overallProfit = 0;
+    int avgVolume[4] = {0,0,0,0};
+    int numAccepted = 0;
+    int numDeclined = 0;
 
     Model(int modellingStep, int N, int K, int margin) {
         this->modellingStep = modellingStep;
@@ -196,12 +191,18 @@ public:
 
         this->margin = margin;
 
-        this->meanTime = 10;
+        this->meanTime = defaultMeanTime;
         this->stddev = 10; // константа
         timeForLiter = 20; // 20 sec
 
+        this->prices[A11] = 10;
+        this->prices[A12] = 15;
+        this->prices[B11] = 20;
+        this->prices[B12] = 22;
+
         ReqList = list<Request>();
         this->gasStation = GasStation(N, K, margin);
+
     }
 
     // генератор заявок включен в класс Model
@@ -223,30 +224,66 @@ public:
         return time_;
     }
 
+
+    bool IsWeekEnd() {
+        if (currTime[0] > 4) {
+            return true;
+        }
+        return false;
+    }
+
+    int ModifyMeanTime() { // реализация логики изменения мат. ожидания интервала между заявками
+        weekendCoeff = (IsWeekEnd()) ? 0.9 : 1.0; // по выходным чаще поступают заявки
+        hourCoeff = HoursCoeff();
+        marginCoeff = margin/defaultMargin;
+        int _mean = meanTime * weekendCoeff * hourCoeff * marginCoeff;
+        return _mean;
+    }
+
+    int HoursCoeff() {
+        int hourT = currTime[1];
+        if (hourT > 540 && hourT < 840) { // пик - с 9 до 14,
+            return 0.6;
+        } else {
+            if (hourT >= 840 && hourT < 1320) { // с 14 до 22 - меньше,
+                return 1;
+            } else { // с 22 до 9 - минимум 
+                return 1.2;
+            }
+        }
+    }
+
     void Tick() { // called every step
         int stepTime = 0;
-        if(isWeekEnd()) {
+        int d_time = 0;
+        int currMeanTime = meanTime;
+
+        /*
+        if(IsWeekEnd()) {
             meanTime = 5;
         } else {
             meanTime = 10;
         }
+        */
+
         // generating and accepting Requests for one modelling step...
         while(true) {
-            
 
             // d_time generating from 1 to 20 mins...
             // TODO d_time depends on fluxDensity - more complex
-            int d_time = NormalRandom(meanTime,stddev);
+            currMeanTime = ModifyMeanTime(); 
+            d_time = NormalRandom(currMeanTime,stddev);
             d_time = intervalCram(d_time);
 
 
             cout << "gen d_time: " << d_time << endl;
 
             stepTime += d_time;
-            TimeTick(d_time);
-            if (stepTime > modellingStep) {
+
+            if (stepTime >= modellingStep) {
                 break;
             }
+            TimeTick(d_time);
 
             Request req = generateNewReq();
 
@@ -267,27 +304,82 @@ public:
             gasStation.ClearServicedReqs(); // pop the head of queue if service time's over
         }
 
-        gasStation.UpdateReqsTime(stepTime-modellingStep);
+        int leftT = modellingStep - stepTime + d_time;
+
+        gasStation.UpdateReqsTime(leftT);
 
         gasStation.ClearServicedReqs();
 
-
-        TimeTick(stepTime-modellingStep);
+        TimeTick(leftT);
+        cout << "weekday:" << currTime[0] << endl;
+        cout << "TIME: " << currTime[1] << endl;
     }
 
     void TimeTick(int t_mins) { // updating the modelling time
         currTime[1] += t_mins;
         if (currTime[1] > minsInDay) {
             currTime[0] += 1;
-            currTime[1] -= minsInDay;
+            currTime[1] -= minsInDay; // обнулили время в сутках, тк начались новые
         }
     };
 
-    
-    bool isWeekEnd() {
-        if (currTime[0] > 4) {
-            return true;
-        }
-        return false;
+    void GetStats() { // проходимся по списку всех заявок и собираем статистику, вызывая соотв. функции
+        overallProfit = GetOverallProfit();
+        //profitByTypes = GetProfitByTypes();
+        GetAvgVolumeByTypes();
+        numAccepted = GetNumOfAccepted();
+        numDeclined = GetNumOfDeclined();
+
     }
+
+    int GetOverallProfit() {
+        int profit = 0;
+
+         for (Request& req : ReqList) {
+            if (req.status == Accepted) {
+                profit += req.volume * prices[req.gType];
+            }
+        }
+        return profit;
+
+    }
+
+    void GetAvgVolumeByTypes() {
+        for (int i = 0; i < 4; i++) {
+            int sumVolume = 0;
+            int numVolume = 0;
+            for (Request& req : ReqList) {
+                if (req.gType == i) {
+                    sumVolume += req.volume;
+                    numVolume += 1;
+                }
+            }
+            if(numVolume != 0)
+                avgVolume[i] = sumVolume / numVolume;
+        }
+        //return volumes;
+
+    }
+
+    int GetNumOfAccepted() {
+        int num = 0;
+
+        for (Request& req : ReqList) {
+           if (req.status == Accepted) {
+                num += 1;
+           }
+        };
+        return num;
+    }
+
+    int GetNumOfDeclined() {
+        int num = 0;
+        for (Request& req : ReqList) {
+           if (req.status == Declined) {
+                num += 1;
+           }
+        };
+        return num;
+    }
+
 };
