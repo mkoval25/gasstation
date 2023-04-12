@@ -168,6 +168,8 @@ public:
 
     float weekendCoeff;
     float hourCoeff;
+
+    float dayHourCoeffs[7][24];
     float marginCoeff;
 
     GasStation gasStation;
@@ -183,7 +185,7 @@ public:
     int numDeclined = 0;
 
     // временной интервал с последней заявки
-    int timeFromLastReq;
+    int timeFromLastReq = 0;
 
     Model(int modellingStep, int N, int K, int margin) {
         this->modellingStep = modellingStep;
@@ -192,6 +194,8 @@ public:
 
         this->margin = margin;
 
+        HoursCoeffsInitialize(); // иницализировали массив dayHourCoeffs
+
         this->meanTime = defaultMeanTime;
         this->stddev = 3; // константа
         //timeForLiter = 20; // 20 sec
@@ -199,7 +203,7 @@ public:
         this->prices[0] = defaultPrices[0]*(100+margin)/100;
         this->prices[1] = defaultPrices[1]*(100+margin)/100;
         this->prices[2] = defaultPrices[2]*(100+margin)/100;
-        this->prices[3] = defaultPrices[3]*(100+margin)/100;;
+        this->prices[3] = defaultPrices[3]*(100+margin)/100;
 
         ReqList = list<Request>();
         this->gasStation = GasStation(N, K, margin);
@@ -234,52 +238,42 @@ public:
 
     int ModifyMeanTime() { // реализация логики изменения мат. ожидания интервала между заявками
         weekendCoeff = (IsWeekEnd()) ? 0.9 : 1.0; // по выходным чаще поступают заявки
-        hourCoeff = HoursCoeff();
+        int day_ndx = currTime[0];
+        int hour_ndx = currTime[1]/60;
+        if (currTime[1] >= 1440) {
+            hour_ndx -= 1;
+        };
+
+        hourCoeff = dayHourCoeffs[day_ndx][hour_ndx];
         marginCoeff = margin/defaultMargin;
 
-        int _mean = defaultMeanTime * weekendCoeff * hourCoeff * marginCoeff;
+        //int _mean = defaultMeanTime * weekendCoeff * hourCoeff * marginCoeff;
+        int _mean = defaultMeanTime * weekendCoeff * hourCoeff * (100+marginCoeff)/100;
+
         return _mean;
     }
 
-    float HoursCoeff() {
-        int hourT = currTime[1];
-        if (hourT > 540 && hourT < 840) { // пик - с 9 до 14,
-            return 0.6;
-        } else {
-            if (hourT >= 840 && hourT < 1140) { // с 14 до 19 - меньше,
-                return 0.9;
-            } else { // с 19 до 9 - минимум по выходным, иначе больше
-                if (IsWeekEnd()) {
-                    return 1.2;
-                } else {
-                    return 0.6;
-                }
-            }
-        }
-    }
 
     void Tick() { // called every step
         int stepTime = 0;
         int d_time = 0;
         int currMeanTime = meanTime;
 
-
-
-
         // generating and accepting Requests for one modelling step...
         while(true) {
 
             // d_time generating from 1 to 20 mins...
             currMeanTime = ModifyMeanTime();
-            d_time = NormalRandom(currMeanTime,stddev);
-            d_time = intervalCram(d_time);
 
-            if (timeFromLastReq != 0){
+            if (timeFromLastReq != 0) {
                 d_time = timeFromLastReq;
                 timeFromLastReq = 0;
+            } else {
+                d_time = NormalRandom(currMeanTime,stddev);
+                d_time = intervalCram(d_time);
             }
 
-            //cout << "currMeanTime: " << currMeanTime << endl;
+            cout << "currMeanTime: " << currMeanTime << endl;
             cout << "gen d_time: " << d_time << endl;
 
             stepTime += d_time;
@@ -291,8 +285,6 @@ public:
             }
 
             TimeTick(d_time);
-
-
 
             Request req = generateNewReq();
 
@@ -327,6 +319,35 @@ public:
             currTime[1] -= minsInDay; // обнулили время в сутках, тк начались новые
         }
     };
+
+    void HoursCoeffsInitialize () {
+        for (int d = 0; d < daysInWeek; d++) {
+            for (int h = 0; h < 24; h++ ) {
+                if (h >= 8) { // 8, так как начинается с нуля
+                    if (h < 13) { // 9..14 
+                        dayHourCoeffs[d][h] = 0.6;
+                    } else {
+                        if (h < 18 ) { // 14 .. 19 - меньше
+                            dayHourCoeffs[d][h] = 0.9;
+                        } else {
+                            if (h <= 21) {// 19..22 - по будням больше, по выходным меньше
+                                if (d > 4) {
+                                    dayHourCoeffs[d][h] = 1.0;
+                                } else {
+                                    dayHourCoeffs[d][h] = 0.5;
+                                }
+                            } else { // 22..24 - затишье, как и с 0..9
+                                dayHourCoeffs[d][h] = 1.2; 
+                            }
+                        }
+                    }
+                } else { // 0..9
+                    dayHourCoeffs[d][h] = 1.2; 
+                }
+            }
+        }
+        
+    }
 
     void GetStats() { // проходимся по списку всех заявок и собираем статистику, вызывая соотв. функции
         overallProfit = GetOverallProfit();
