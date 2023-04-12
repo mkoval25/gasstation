@@ -20,9 +20,8 @@ string weekDays[] = {"ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"};
 
 // здесь все те же поля, что в Model
 int margin;
-int browserNum=0;
 
-// цены??
+
 int N;
 int K;
 
@@ -168,6 +167,7 @@ void MainWindow::on_pushButton_2_clicked() // "Начать"
 
    //mod = new Model(60,4,5,13);
    mod = new Model(step,N,K,margin);
+   cout << "PRICES: " << mod->prices[0] << " " << mod->prices[1] << " " << mod->prices[2] << " " << mod->prices[3] << endl;
    mins = mod->currTime[1];
    cout << "MINS at start: " << mins << endl;
    // ...Initialize()

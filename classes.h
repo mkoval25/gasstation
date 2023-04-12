@@ -11,8 +11,6 @@ using namespace std;
 
 // все время меряется в минутах
 
-// TODO:
-// использовать переменную flux для meantime = 1/flux?
 
 enum GasType { A11, B11, A12, B12 };
 
@@ -45,7 +43,7 @@ class Column {
         // int numOfCars; // текущее кол-во машин в колонне
 
         // двунаправленная очередь
-        deque<Request> currReqs; 
+        deque<Request> currReqs;
         // int t_accepted; // время принятия последней заявки
         // int t_service; // время обслуживания последней заявки, множитель*volume
 
@@ -128,7 +126,7 @@ class GasStation {
                 }
             }
         }
-        
+
 };
 
 // Генераторы случайных чисел
@@ -176,13 +174,16 @@ public:
 
     list<Request> ReqList;
 
-    int timeForLiter = 20; // 20 secs;
-    
+    //int timeForLiter = 20; // 20 secs;
+
     // stats
     int overallProfit = 0;
     int avgVolume[4] = {0,0,0,0};
     int numAccepted = 0;
     int numDeclined = 0;
+
+    // временной интервал с последней заявки
+    int timeFromLastReq;
 
     Model(int modellingStep, int N, int K, int margin) {
         this->modellingStep = modellingStep;
@@ -193,12 +194,12 @@ public:
 
         this->meanTime = defaultMeanTime;
         this->stddev = 3; // константа
-        timeForLiter = 20; // 20 sec
+        //timeForLiter = 20; // 20 sec
 
-        this->prices[A11] = 10;
-        this->prices[A12] = 15;
-        this->prices[B11] = 20;
-        this->prices[B12] = 22;
+        this->prices[0] = defaultPrices[0]*(100+margin)/100;
+        this->prices[1] = defaultPrices[1]*(100+margin)/100;
+        this->prices[2] = defaultPrices[2]*(100+margin)/100;
+        this->prices[3] = defaultPrices[3]*(100+margin)/100;;
 
         ReqList = list<Request>();
         this->gasStation = GasStation(N, K, margin);
@@ -224,7 +225,6 @@ public:
         return time_;
     }
 
-
     bool IsWeekEnd() {
         if (currTime[0] > 4) {
             return true;
@@ -246,10 +246,14 @@ public:
         if (hourT > 540 && hourT < 840) { // пик - с 9 до 14,
             return 0.6;
         } else {
-            if (hourT >= 840 && hourT < 1320) { // с 14 до 22 - меньше,
-                return 1;
-            } else { // с 22 до 9 - минимум 
-                return 1.2;
+            if (hourT >= 840 && hourT < 1140) { // с 14 до 19 - меньше,
+                return 0.9;
+            } else { // с 19 до 9 - минимум по выходным, иначе больше
+                if (IsWeekEnd()) {
+                    return 1.2;
+                } else {
+                    return 0.6;
+                }
             }
         }
     }
@@ -260,13 +264,20 @@ public:
         int currMeanTime = meanTime;
 
 
+
+
         // generating and accepting Requests for one modelling step...
         while(true) {
 
             // d_time generating from 1 to 20 mins...
-            currMeanTime = ModifyMeanTime(); 
+            currMeanTime = ModifyMeanTime();
             d_time = NormalRandom(currMeanTime,stddev);
             d_time = intervalCram(d_time);
+
+            if (timeFromLastReq != 0){
+                d_time = timeFromLastReq;
+                timeFromLastReq = 0;
+            }
 
             //cout << "currMeanTime: " << currMeanTime << endl;
             cout << "gen d_time: " << d_time << endl;
@@ -274,9 +285,14 @@ public:
             stepTime += d_time;
 
             if (stepTime >= modellingStep) {
+                timeFromLastReq = stepTime - modellingStep;
                 break;
+
             }
+
             TimeTick(d_time);
+
+
 
             Request req = generateNewReq();
 
@@ -286,8 +302,9 @@ public:
             else {
                 req.status = Declined;
             }
+
             ReqList.push_back(req); // adding new request to a list
-        
+
             gasStation.UpdateReqsTime(d_time); // only the head of queue
             gasStation.ClearServicedReqs(); // pop the head of queue if service time's over
         }
@@ -366,5 +383,4 @@ public:
         };
         return num;
     }
-
 };
